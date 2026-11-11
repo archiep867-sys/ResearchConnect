@@ -7,6 +7,7 @@ CSV files; nothing is typed in by hand. Charts are returned as small dicts
 An empty chart simply has an empty "labels" list, and the page shows a message.
 """
 from collections import Counter
+from itertools import combinations
 
 import pandas as pd
 
@@ -54,6 +55,27 @@ def keyword_trends(ds):
     for (keyword, year), count in counts.items():
         trends.setdefault(keyword, {})[int(year)] = int(count)
     return trends
+
+
+def keyword_cooccurrence(ds):
+    """Return display labels and symmetric per-paper keyword pair counts.
+
+    Both axes follow normalized keyword order. Only distinct pairs count, so
+    the diagonal is zero. Single-keyword papers still contribute a label;
+    publication years do not affect co-occurrence.
+    """
+    keywords, pairs = set(), Counter()
+    for paper in ds.papers:
+        distinct = sorted({k.lower() for k in paper["keyword_list"]})
+        keywords.update(distinct)
+        pairs.update(combinations(distinct, 2))
+    ordered = sorted(keywords)
+    positions = {keyword: index for index, keyword in enumerate(ordered)}
+    matrix = [[0 for _ in ordered] for _ in ordered]
+    for (a, b), count in pairs.items():
+        i, j = positions[a], positions[b]
+        matrix[i][j] = matrix[j][i] = count
+    return {"labels": [ds.keyword_labels[k] for k in ordered], "matrix": matrix}
 
 
 def publications_by_department(ds):
