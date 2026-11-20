@@ -18,9 +18,12 @@ browser needs internet access to load Plotly, Bootstrap and the fonts.
 | `algorithms/data_manager.py` | Reads the 3 CSVs with pandas, cleans blanks/years/keywords/URLs, links papers to faculty through `authorship.csv`. |
 | `algorithms/expertise.py` | Keyword sets and Jaccard similarity. |
 | `algorithms/collaboration.py` | Builds the NetworkX graph from shared papers only. |
+| `algorithms/faculty_filters.py` | Faculty search, department / keyword / minimum-papers filters and sorting. |
+| `algorithms/citations.py` | APA, IEEE and BibTeX text built from paper data (VJTI authors only, nothing invented). |
 | `algorithms/analytics.py` | Counts papers by year, department, keyword and faculty. |
 | `templates/` | Jinja HTML. `base.html` holds the top navigation; `_macros.html` holds reusable pieces (empty state, paper card). |
 | `static/css/style.css` | Navy and violet theme. |
+| `static/js/app.js`, `collections.js` | Toasts, copy buttons, back-to-top, and the Saved / Shortlist lists (browser `localStorage`, IDs only). |
 | `static/js/charts.js`, `network.js` | Draw the charts and the clickable network with Plotly.js. |
 
 ## The two algorithms
@@ -46,3 +49,11 @@ Keywords are never used here.
   after a browser refresh without restarting Flask.
 - **What happens with bad data?** Blank cells stay blank and the page says "not listed". Authorship rows pointing
   to unknown IDs are skipped and reported on the dashboard. Only `http(s)` links are ever rendered.
+
+## Saved papers and shortlist (new)
+- **Where is the list stored?** In the visitor's browser (`localStorage`), as a list of IDs only. The server never
+  writes anything, which keeps the "app only reads the CSV files" rule true.
+- **Why are citations incomplete?** `authorship.csv` omits external co-authors on purpose, so citations list VJTI
+  faculty only and the page says so. Blank year / venue / DOI are left out (year shows `n.d.`), never guessed.
+- **Why is there no collaboration path finder?** Every paper has one VJTI author, so the graph has no edges and a
+  path finder could only answer "no path". Add multi-author rows to `authorship.csv` first.

@@ -9,6 +9,7 @@ This file only connects web pages (routes) to the logic in the algorithms/ folde
 
 Run it with:   python app.py      then open  http://127.0.0.1:5000
 """
+<<<<<<< ours
 import os
 from flask import Flask, abort, render_template, request, url_for, Response
 
@@ -24,6 +25,12 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip().strip("'\""))
+=======
+from flask import Flask, abort, render_template, request, url_for
+
+from algorithms import analytics, citations, collaboration, expertise, faculty_filters, quality
+from algorithms.data_manager import Dataset
+>>>>>>> theirs
 
 app = Flask(__name__)
 app.config["ADMIN_ENABLED"] = os.environ.get("RC_ADMIN_ENABLED", "False").lower() in ("1", "true", "yes")
@@ -68,15 +75,23 @@ def faculty_list():
     ds = Dataset()
     q = request.args.get("q", "").strip()
     dept = request.args.get("department", "").strip()
+    keyword = request.args.get("keyword", "").strip()
+    min_papers = faculty_filters.parse_min_papers(request.args.get("min_papers", ""))
+    sort = request.args.get("sort", "name")
+    if sort not in faculty_filters.SORTS:
+        sort = "name"
 
-    people = ds.faculty
-    if q:
-        people = [f for f in people if q.lower() in f["name"].lower()]
-    if dept:
-        people = [f for f in people if f["department"] == dept]
+    people = faculty_filters.filter_faculty(ds, q, dept, keyword, min_papers, sort)
+    for f in people:                       # chips shown on each card (see faculty.html)
+        f["card_keywords"] = faculty_filters.faculty_keywords(f)
+    filters_active = bool(q or dept or keyword or min_papers or sort != "name")
 
-    return render_template("faculty.html", people=people, q=q, dept=dept,
-                           departments=ds.departments(), total=len(ds.faculty))
+    return render_template("faculty.html", people=people, q=q, dept=dept, keyword=keyword,
+                           min_papers=min_papers, sort=sort, sorts=faculty_filters.SORTS,
+                           filters_active=filters_active, departments=ds.departments(),
+                           keyword_options=faculty_filters.keyword_options(ds),
+                           max_papers=max([f["paper_count"] for f in ds.faculty] + [0]),
+                           total=len(ds.faculty))
 
 
 @app.route("/faculty/<faculty_id>")
@@ -131,7 +146,7 @@ def publication_detail(paper_id):
     paper = ds.get_paper(paper_id)
     if paper is None:
         abort(404)
-    return render_template("paper_detail.html", paper=paper)
+    return render_template("paper_detail.html", paper=paper, cite=citations.citations_for(paper))
 
 
 # ---------- Publications ----------
@@ -343,6 +358,34 @@ def analytics_page():
         total_papers=len(ds.papers),
         total_faculty=len(ds.faculty),
     )
+
+
+# ---------- Saved publications and faculty shortlist ----------
+# Which items are saved lives in the visitor's browser (localStorage). The server only
+# supplies the details for every paper / faculty member, as JSON, and the page picks out the saved ones.
+@app.route("/saved")
+def saved_publications():
+    ds = Dataset()
+    items = []
+    for p in ds.papers:
+        cite = citations.citations_for(p)
+        items.append({
+            "id": p["paper_id"], "title": p["title"], "year": p["year_num"] or "",
+            "venue": p["venue"], "authors": ", ".join(a["name"] for a in p["authors"]),
+            "url": url_for("publication_detail", paper_id=p["paper_id"]), "bibtex": cite["bibtex"],
+        })
+    return render_template("saved.html", items=items)
+
+
+@app.route("/shortlist")
+def faculty_shortlist():
+    ds = Dataset()
+    items = [{
+        "id": f["faculty_id"], "name": f["name"], "department": f["department"],
+        "keywords": faculty_filters.faculty_keywords(f), "papers": f["paper_count"],
+        "url": url_for("faculty_detail", faculty_id=f["faculty_id"]),
+    } for f in ds.faculty]
+    return render_template("shortlist.html", items=items)
 
 
 @app.errorhandler(404)

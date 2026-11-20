@@ -12,6 +12,7 @@
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 </head>
 <body>
+{% from "_macros.html" import icon %}
 {% set nav_items = [
   ('dashboard', 'Dashboard'),
   ('faculty_list', 'Faculty'),
@@ -44,6 +45,12 @@
         </li>
         {% endfor %}
       </ul>
+      <ul class="navbar-nav rc-nav-tools">
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'saved_publications' %}active{% endif %}" href="{{ url_for('saved_publications') }}" title="Saved publications">
+          {{ icon('bookmark') }}<span class="visually-hidden">Saved publications</span><span class="nav-count" data-count="papers" hidden>0</span></a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'faculty_shortlist' %}active{% endif %}" href="{{ url_for('faculty_shortlist') }}" title="Faculty shortlist">
+          {{ icon('star') }}<span class="visually-hidden">Faculty shortlist</span><span class="nav-count" data-count="faculty" hidden>0</span></a></li>
+      </ul>
     </div>
   </div>
 </nav>
@@ -52,12 +59,40 @@
 
 <footer class="rc-footer">
   <div class="container">
-    ResearchConnect is a VJTI college mini-project. Data comes from faculty.csv, papers.csv and authorship.csv.
+    <div class="row g-4">
+      <div class="col-md-6">
+        <strong class="rc-footer-name">ResearchConnect</strong>
+        <p class="mb-0">A VJTI college mini-project. Data comes from faculty.csv, papers.csv and authorship.csv,
+          transcribed from the official VJTI faculty publications page. Please verify details against the source before citing.</p>
+      </div>
+      <div class="col-6 col-md-3">
+        <strong class="rc-footer-head">Explore</strong>
+        <ul class="rc-footer-links">
+          <li><a href="{{ url_for('faculty_list') }}">Faculty</a></li>
+          <li><a href="{{ url_for('publications') }}">Publications</a></li>
+          <li><a href="{{ url_for('expertise_finder') }}">Expertise Finder</a></li>
+          <li><a href="{{ url_for('network') }}">Collaboration Network</a></li>
+        </ul>
+      </div>
+      <div class="col-6 col-md-3">
+        <strong class="rc-footer-head">Your lists</strong>
+        <ul class="rc-footer-links">
+          <li><a href="{{ url_for('saved_publications') }}">Saved publications</a></li>
+          <li><a href="{{ url_for('faculty_shortlist') }}">Faculty shortlist</a></li>
+          <li><a href="{{ url_for('data_quality') }}">Data quality report</a></li>
+          <li><a href="https://vjti.ac.in/faculty-research-publications/" target="_blank" rel="noopener noreferrer">Official VJTI source</a></li>
+        </ul>
+      </div>
+    </div>
   </div>
 </footer>
 
+<div id="rc-toasts" class="rc-toasts" role="status" aria-live="polite"></div>
+<button type="button" id="rc-top" class="rc-top" aria-label="Back to top" hidden>{{ icon('arrow-up') }}</button>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>

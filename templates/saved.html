@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import empty, icon %}
+{% block title %}Saved Publications{% endblock %}
+{% block content %}
+<div class="container page">
+  <h1 class="page-title">Saved publications</h1>
+  <p class="muted page-lead">Papers you bookmarked with the Save button. The list is kept in this browser only, so it is private to you and is not stored on the server.</p>
+
+  <div id="rc-collection" data-kind="papers">
+    <div id="rc-tools" class="d-flex flex-wrap align-items-center gap-2 mb-4" hidden>
+      <span class="muted" id="rc-total" aria-live="polite"></span>
+      <span class="ms-auto d-flex flex-wrap gap-2">
+        <button type="button" class="btn rc-btn btn-sm" id="rc-copy-bib">{{ icon('copy') }} Copy all as BibTeX</button>
+        <button type="button" class="btn rc-btn-ghost btn-sm" id="rc-download-bib">{{ icon('download') }} Download .bib</button>
+        <button type="button" class="btn rc-btn-ghost btn-sm" id="rc-clear">Clear list</button>
+      </span>
+    </div>
+    <div id="rc-items" class="d-grid gap-3"></div>
+    <div id="rc-none" hidden>
+      {{ empty("No saved publications yet", "Press Save on any paper in the publications table or on a paper page, and it will appear here.") }}
+      <p class="text-center mt-3"><a class="btn rc-btn" href="{{ url_for('publications') }}">Browse publications</a></p>
+    </div>
+  </div>
+  <p class="muted small mt-4">BibTeX lists only the VJTI faculty recorded in the data. Add external co-authors from the publisher page before submitting.</p>
+</div>
+<script type="application/json" id="rc-data">{{ items|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/collections.js') }}"></script>
+{% endblock %}

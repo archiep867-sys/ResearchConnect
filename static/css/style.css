@@ -263,3 +263,56 @@ a:focus-visible, button:focus-visible, .form-control:focus-visible, .form-select
   * { transition: none !important; scroll-behavior: auto !important; }
   .rc-card-link:hover, .stat-card:hover, .stat-card:hover .stat-icon { transform: none; }
 }
+
+/* ---- save / shortlist buttons ---- */
+.store-btn { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; padding: .3rem .8rem; }
+.store-btn .icon { width: 15px; height: 15px; }
+.store-btn.is-on { background: rgba(167,139,250,.28); color: var(--text); border-color: var(--accent); }
+.store-btn.is-on .icon { fill: currentColor; }
+.col-save { width: 1%; white-space: nowrap; }
+
+/* ---- navigation tools (saved + shortlist) ---- */
+.rc-nav-tools { flex-direction: row; gap: .15rem; margin-left: .5rem; }
+.rc-nav-tools .nav-link { position: relative; padding: .5rem .65rem; }
+.rc-nav-tools .icon { width: 19px; height: 19px; display: block; }
+.nav-count { position: absolute; top: .1rem; right: -.05rem; min-width: 1.15rem; padding: 0 .3rem; border-radius: 999px; background: var(--accent); color: #140d2b; font-size: .68rem; font-weight: 700; line-height: 1.15rem; text-align: center; }
+.nav-count[hidden] { display: none; }
+@media (max-width: 991px) { .rc-nav-tools { margin: .4rem 0 0; } }
+
+/* ---- faculty filters ---- */
+.filter-panel { padding: 1.3rem 1.4rem; margin-bottom: 1.5rem; }
+.filter-panel .form-label { color: var(--muted); font-size: .85rem; margin-bottom: .3rem; }
+.active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .1rem .3rem; margin-bottom: 1.5rem; }
+.active-filters .chip { margin-bottom: 0; }
+a.chip-link { text-decoration: none; }
+
+/* ---- citations ---- */
+.cite-tabs { gap: .4rem; margin-bottom: 1rem; }
+.cite-tabs .nav-link { color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: .3rem 1rem; }
+.cite-tabs .nav-link:hover { color: var(--text); }
+.cite-tabs .nav-link.active { background: rgba(167,139,250,.28); color: var(--text); border-color: var(--accent); }
+.cite-text { background: rgba(9,14,29,.6); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; color: #e6e3f5; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86rem; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: .8rem; }
+.btn.rc-btn .icon { width: 15px; height: 15px; margin-right: .25rem; vertical-align: -2px; }
+.rc-btn-ghost .icon { width: 15px; height: 15px; }
+
+/* ---- network legend ---- */
+.legend-item { display: flex; align-items: center; gap: .8rem; font-size: .88rem; color: #d6d9e6; line-height: 1.4; }
+.legend-item svg { flex-shrink: 0; }
+
+/* ---- toasts + back to top ---- */
+.rc-toasts { position: fixed; left: 50%; bottom: 1.4rem; transform: translateX(-50%); z-index: 1080; display: flex; flex-direction: column; align-items: center; gap: .5rem; pointer-events: none; width: max-content; max-width: calc(100vw - 2rem); }
+.rc-toast { background: var(--card-2); color: var(--text); border: 1px solid var(--accent); border-radius: 999px; padding: .55rem 1.2rem; box-shadow: 0 10px 28px rgba(0,0,0,.45); font-size: .92rem; animation: rc-toast-in .22s ease; transition: opacity .4s, transform .4s; }
+.rc-toast-out { opacity: 0; transform: translateY(8px); }
+@keyframes rc-toast-in { from { opacity: 0; transform: translateY(10px); } }
+.rc-top { position: fixed; right: 1.2rem; bottom: 1.2rem; z-index: 1070; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--accent); background: var(--card-2); color: var(--accent-soft); display: grid; place-items: center; transition: background .2s, transform .2s; }
+.rc-top[hidden] { display: none; }
+.rc-top:hover { background: var(--accent); color: #140d2b; transform: translateY(-2px); }
+.rc-top .icon { width: 20px; height: 20px; }
+@media (prefers-reduced-motion: reduce) { .rc-toast, .rc-top { animation: none; transition: none; } html { scroll-behavior: auto; } }
+
+/* ---- footer ---- */
+.rc-footer { color: var(--muted); font-size: .9rem; }
+.rc-footer-name { display: block; font-family: var(--font-display); font-size: 1.15rem; color: var(--text); margin-bottom: .3rem; }
+.rc-footer-head { display: block; color: var(--text); margin-bottom: .4rem; }
+.rc-footer-links { list-style: none; padding: 0; margin: 0; }
+.rc-footer-links li { margin-bottom: .25rem; }

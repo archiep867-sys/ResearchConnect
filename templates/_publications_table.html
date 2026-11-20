@@ -1,6 +1,6 @@
 {# Shared interactive publications table. Used on the dashboard and on /publications.
    Needs: pub_rows, pub_years, pub_departments, init_q, init_year, init_dept. Optional: compact #}
-{% from "_macros.html" import empty, icon %}
+{% from "_macros.html" import empty, icon, store_button %}
 {% if not pub_rows %}
   {{ empty("No publication data", "papers.csv is missing or has no rows. Add papers and refresh this page.") }}
 {% else %}
@@ -36,6 +36,7 @@
           <th scope="col">Faculty Author</th>
           <th scope="col">Department</th>
           <th scope="col" class="col-link">DOI / Source</th>
+          <th scope="col" class="col-save"><span class="visually-hidden">Save</span></th>
         </tr>
       </thead>
       <tbody>
@@ -66,6 +67,7 @@
               </a>
             {% else %}<span class="muted">Not available</span>{% endif %}
           </td>
+          <td data-label="Save" class="col-save">{{ store_button('papers', p.paper_id) }}</td>
         </tr>
         {% endfor %}
       </tbody>
