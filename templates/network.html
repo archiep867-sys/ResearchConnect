@@ -95,7 +95,17 @@
     </div>
   </div>
 
-<<<<<<< ours
+  <section class="rc-card mt-4" aria-labelledby="legend-heading">
+    <h2 class="card-heading" id="legend-heading">How to read this graph</h2>
+    <div class="row g-3">
+      <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><circle cx="9" cy="15" r="5" fill="#7C6BD6"/><circle cx="30" cy="15" r="11" fill="#7C6BD6"/></svg><span><strong>Dot size</strong><br>Bigger dot, more VJTI collaborators.</span></div></div>
+      <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><circle cx="13" cy="15" r="9" fill="#7C6BD6"/><circle cx="33" cy="15" r="9" fill="#DDD3FF"/></svg><span><strong>Dot colour</strong><br>Darker violet has fewer collaborators, lighter has more.</span></div></div>
+      <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><line x1="2" y1="9" x2="42" y2="9" stroke="#C4B5FD" stroke-width="2"/><line x1="2" y1="21" x2="42" y2="21" stroke="#C4B5FD" stroke-width="6"/></svg><span><strong>Line thickness</strong><br>Thicker line, more shared papers.</span></div></div>
+      <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><circle cx="22" cy="15" r="10" fill="#7C6BD6" stroke="#F4F1FF" stroke-width="3"/></svg><span><strong>White outline</strong><br>The dot you selected. Details open in the panel.</span></div></div>
+    </div>
+    <p class="muted small mt-3 mb-0">A line means two faculty are listed as authors of the same paper in authorship.csv. Shared keywords never create a line.</p>
+  </section>
+
   {% if stats.top_pairs %}
   <h2 class="card-heading mt-4">Collaborating pairs</h2>
   <div class="rc-card table-responsive">
@@ -153,32 +163,6 @@
   {% else %}
   {{ empty("No centrality data", "There are no faculty members to display centrality for.") }}
   {% endif %}
-=======
-    <section class="rc-card mt-4" aria-labelledby="legend-heading">
-      <h2 class="card-heading" id="legend-heading">How to read this graph</h2>
-      <div class="row g-3">
-        <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><circle cx="9" cy="15" r="5" fill="#7C6BD6"/><circle cx="30" cy="15" r="11" fill="#7C6BD6"/></svg><span><strong>Dot size</strong><br>Bigger dot, more VJTI collaborators.</span></div></div>
-        <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><circle cx="13" cy="15" r="9" fill="#7C6BD6"/><circle cx="33" cy="15" r="9" fill="#DDD3FF"/></svg><span><strong>Dot colour</strong><br>Darker violet has fewer collaborators, lighter has more.</span></div></div>
-        <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><line x1="2" y1="9" x2="42" y2="9" stroke="#C4B5FD" stroke-width="2"/><line x1="2" y1="21" x2="42" y2="21" stroke="#C4B5FD" stroke-width="6"/></svg><span><strong>Line thickness</strong><br>Thicker line, more shared papers.</span></div></div>
-        <div class="col-md-6 col-xl-3"><div class="legend-item"><svg width="44" height="30" aria-hidden="true"><circle cx="22" cy="15" r="10" fill="#7C6BD6" stroke="#F4F1FF" stroke-width="3"/></svg><span><strong>White outline</strong><br>The dot you selected. Details open in the panel.</span></div></div>
-      </div>
-      <p class="muted small mt-3 mb-0">A line means two faculty are listed as authors of the same paper in authorship.csv. Shared keywords never create a line.</p>
-    </section>
-
-    {% if stats.top_pairs %}
-    <h2 class="card-heading mt-4">Collaborating pairs</h2>
-    <div class="rc-card table-responsive">
-      <table class="table rc-table mb-0">
-        <thead><tr><th>Faculty</th><th>Shared papers</th><th>Titles</th></tr></thead>
-        <tbody>
-          {% for pair in stats.top_pairs %}
-          <tr><td>{{ pair.a }} and {{ pair.b }}</td><td>{{ pair.shared }}</td><td>{{ pair.titles|join('; ') }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
->>>>>>> theirs
   {% else %}
   {{ empty("No faculty to display", "faculty.csv is missing or has no rows, so there is nothing to draw.") }}
   {% endif %}
