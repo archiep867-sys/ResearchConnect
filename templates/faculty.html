@@ -1,37 +1,77 @@
 {% extends "base.html" %}
-{% from "_macros.html" import empty, chips %}
+{% from "_macros.html" import empty, store_button, keyword_links %}
 {% block title %}Faculty{% endblock %}
 {% block content %}
 <div class="container page">
   <h1 class="page-title">Faculty directory</h1>
-  <p class="muted page-lead">Showing {{ people|length }} of {{ total }} faculty profiles.</p>
-  <p><a class="btn rc-btn-ghost" href="{{ url_for('faculty_compare') }}">Compare faculty</a></p>
+  <p class="muted page-lead" aria-live="polite">Showing {{ people|length }} of {{ total }} faculty profiles.</p>
+  <p class="d-flex flex-wrap gap-2">
+    <a class="btn rc-btn-ghost" href="{{ url_for('faculty_compare') }}">Compare faculty</a>
+    <a class="btn rc-btn-ghost" href="{{ url_for('faculty_shortlist') }}">View shortlist</a>
+  </p>
 
-  <form class="row g-2 filter-bar" method="get" action="{{ url_for('faculty_list') }}">
-    <div class="col-md-6">
-      <input class="form-control" type="search" name="q" value="{{ q }}" placeholder="Search by faculty name" aria-label="Search by faculty name">
+  <form class="rc-card filter-panel" method="get" action="{{ url_for('faculty_list') }}" aria-label="Faculty filters">
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <label class="form-label" for="f-q">Name</label>
+        <input class="form-control" id="f-q" type="search" name="q" value="{{ q }}" placeholder="Search by faculty name">
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <label class="form-label" for="f-dept">Department</label>
+        <select class="form-select" id="f-dept" name="department">
+          <option value="">All departments</option>
+          {% for d in departments %}<option value="{{ d }}" {% if d == dept %}selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <label class="form-label" for="f-kw">Research keyword</label>
+        <select class="form-select" id="f-kw" name="keyword">
+          <option value="">Any keyword</option>
+          {% for label, n in keyword_options %}<option value="{{ label }}" {% if label|lower == keyword|lower %}selected{% endif %}>{{ label }} ({{ n }})</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4 col-lg-3">
+        <label class="form-label" for="f-min">Minimum papers</label>
+        <input class="form-control" id="f-min" type="number" name="min_papers" min="0" max="{{ max_papers }}" value="{{ min_papers if min_papers else '' }}" placeholder="0">
+      </div>
+      <div class="col-md-4 col-lg-3">
+        <label class="form-label" for="f-sort">Sort by</label>
+        <select class="form-select" id="f-sort" name="sort">
+          {% for key, label in sorts.items() %}<option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4 col-lg-6 d-flex align-items-end gap-2 justify-content-lg-end">
+        <button class="btn rc-btn" type="submit">Apply filters</button>
+        <a class="btn rc-btn-ghost" href="{{ url_for('faculty_list') }}">Reset</a>
+      </div>
     </div>
-    <div class="col-md-4">
-      <select class="form-select" name="department" aria-label="Filter by department">
-        <option value="">All departments</option>
-        {% for d in departments %}<option value="{{ d }}" {% if d == dept %}selected{% endif %}>{{ d }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2 d-flex gap-2">
-      <button class="btn rc-btn flex-fill" type="submit">Search</button>
-      <a class="btn rc-btn-ghost" href="{{ url_for('faculty_list') }}">Reset</a>
-    </div>
+    <p class="muted small mt-3 mb-0">Keyword matches use each person's listed expertise plus the keywords of their own papers. The number in brackets is how many faculty have that keyword.</p>
   </form>
+
+  {% if filters_active %}
+  <div class="active-filters" aria-label="Active filters">
+    <span class="muted small">Active:</span>
+    {% if q %}<span class="chip chip-strong">Name: {{ q }}</span>{% endif %}
+    {% if dept %}<span class="chip chip-strong">{{ dept }}</span>{% endif %}
+    {% if keyword %}<span class="chip chip-strong">Keyword: {{ keyword }}</span>{% endif %}
+    {% if min_papers %}<span class="chip chip-strong">{{ min_papers }}+ papers</span>{% endif %}
+    {% if sort != 'name' %}<span class="chip chip-strong">Sorted: {{ sorts[sort] }}</span>{% endif %}
+  </div>
+  {% endif %}
 
   {% if people %}
   <div class="row g-4">
     {% for f in people %}
     <div class="col-md-6 col-xl-4">
       <article class="rc-card h-100 faculty-card">
-        <h2 class="faculty-name"><a href="{{ url_for('faculty_detail', faculty_id=f.faculty_id) }}">{{ f.name }}</a></h2>
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <h2 class="faculty-name"><a href="{{ url_for('faculty_detail', faculty_id=f.faculty_id) }}">{{ f.name }}</a></h2>
+          {{ store_button('faculty', f.faculty_id) }}
+        </div>
         <p class="muted mb-2">{% if f.department %}<a href="{{ url_for('department_detail', name=f.department) }}">{{ f.department }}</a>{% else %}Not listed{% endif %}</p>
         <div class="mb-3">
-          {% if f.expertise_list %}{{ chips(f.expertise_list) }}{% else %}<span class="muted small">Expertise not listed yet</span>{% endif %}
+          {% if f.card_keywords %}{{ keyword_links(f.card_keywords[:6]) }}{% if f.card_keywords|length > 6 %}<span class="muted small">+{{ f.card_keywords|length - 6 }} more</span>{% endif %}
+          {% else %}<span class="muted small">No keywords listed yet</span>{% endif %}
         </div>
         <p class="count-line"><strong>{{ f.paper_count }}</strong> {{ 'paper' if f.paper_count == 1 else 'papers' }}</p>
         {% if f.papers %}
@@ -50,7 +90,7 @@
     {% if total == 0 %}
       {{ empty("No faculty data", "faculty.csv is missing or has no rows. Add faculty records and refresh this page.") }}
     {% else %}
-      {{ empty("No faculty match", "Try a different name or choose All departments.") }}
+      {{ empty("No faculty match", "No one matches every filter. Remove a filter, lower the minimum papers, or press Reset.") }}
     {% endif %}
   {% endif %}
 </div>

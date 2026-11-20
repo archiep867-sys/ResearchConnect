@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import empty, chips, paper_card %}
+{% from "_macros.html" import empty, chips, paper_card, store_button, keyword_links %}
 {% block title %}{{ person.name }}{% endblock %}
 {% block content %}
 <div class="container page">
@@ -9,6 +9,7 @@
     <p class="muted mb-3">{{ person.department if person.department else 'Department not listed' }}</p>
     <div class="d-flex flex-wrap gap-2 align-items-center">
       <span class="chip chip-strong">{{ person.paper_count }} {{ 'paper' if person.paper_count == 1 else 'papers' }}</span>
+      {{ store_button('faculty', person.faculty_id) }}
       {% if person.profile_url %}<a class="btn rc-btn-ghost btn-sm" href="{{ person.profile_url }}" target="_blank" rel="noopener">Official profile</a>{% endif %}
       {% if person.data_status %}<span class="muted small">Data status: {{ person.data_status }}</span>{% endif %}
     </div>
@@ -18,11 +19,11 @@
     <div class="col-lg-4">
       <div class="rc-card h-100">
         <h2 class="card-heading">Expertise</h2>
-        {% if person.expertise_list %}{{ chips(person.expertise_list) }}
+        {% if person.expertise_list %}{{ keyword_links(person.expertise_list) }}
         {% else %}<p class="muted mb-0">Expertise has not been listed for this faculty member yet.</p>{% endif %}
 
         <h2 class="card-heading mt-4">Keywords from their papers</h2>
-        {% if person.paper_keywords %}{{ chips(person.paper_keywords) }}
+        {% if person.paper_keywords %}{{ keyword_links(person.paper_keywords) }}
         {% else %}<p class="muted mb-0">The linked papers have no keywords listed.</p>{% endif %}
 
         <h2 class="card-heading mt-4">Verified collaborators</h2>

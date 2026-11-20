@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import chips %}
+{% from "_macros.html" import chips, store_button, icon %}
 {% block title %}{{ paper.title }}{% endblock %}
 {% block content %}
 <div class="container page">
@@ -9,6 +9,7 @@
     <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
       <span class="chip chip-strong">Research paper</span>
       {% if paper.year_num %}<span class="chip">{{ paper.year_num }}</span>{% endif %}
+      <span class="ms-auto">{{ store_button('papers', paper.paper_id, false) }}</span>
     </div>
 
     <h1 class="page-title">{{ paper.title }}</h1>
@@ -47,6 +48,32 @@
         <h2 class="card-heading mt-4">Research keywords</h2>
         {% if paper.keyword_list %}{{ chips(paper.keyword_list) }}
         {% else %}<p class="muted mb-0">No keywords listed for this paper.</p>{% endif %}
+
+        <h2 class="card-heading mt-4" id="cite-heading">Cite this paper</h2>
+        <ul class="nav nav-pills cite-tabs" role="tablist" aria-labelledby="cite-heading">
+          {% for key, label in [('apa', 'APA'), ('ieee', 'IEEE'), ('bibtex', 'BibTeX')] %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if loop.first }}" id="tab-{{ key }}" data-bs-toggle="pill" data-bs-target="#pane-{{ key }}"
+                    type="button" role="tab" aria-controls="pane-{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ label }}</button>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="tab-content">
+          {% for key, label in [('apa', 'APA'), ('ieee', 'IEEE'), ('bibtex', 'BibTeX')] %}
+          <div class="tab-pane fade {{ 'show active' if loop.first }}" id="pane-{{ key }}" role="tabpanel" aria-labelledby="tab-{{ key }}" tabindex="0">
+            <pre class="cite-text" id="cite-{{ key }}">{{ cite[key] }}</pre>
+            <button type="button" class="btn rc-btn btn-sm" data-copy="cite-{{ key }}" data-copied="{{ label }} citation copied">
+              {{ icon('copy') }} Copy {{ label }}
+            </button>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="muted small mt-3 mb-0">
+          {% if cite.has_authors %}Authors shown are the VJTI faculty recorded for this paper. External co-authors are not in the dataset,
+            so add them from the publisher page before using the citation.
+          {% else %}No VJTI faculty author is linked to this paper, so the citation has no author names.{% endif %}
+          Check the venue, year and DOI against the source link above.
+        </p>
       </div>
 
       <div class="col-lg-4">

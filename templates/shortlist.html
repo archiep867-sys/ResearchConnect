@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import empty %}
+{% block title %}Faculty Shortlist{% endblock %}
+{% block content %}
+<div class="container page">
+  <h1 class="page-title">Faculty shortlist</h1>
+  <p class="muted page-lead">Faculty you marked with the Shortlist button, kept together so you can compare them. The list is stored in this browser only.</p>
+
+  <div id="rc-collection" data-kind="faculty">
+    <div id="rc-tools" class="d-flex flex-wrap align-items-center gap-2 mb-4" hidden>
+      <span class="muted" id="rc-total" aria-live="polite"></span>
+      <span class="ms-auto"><button type="button" class="btn rc-btn-ghost btn-sm" id="rc-clear">Clear shortlist</button></span>
+    </div>
+
+    <form id="rc-compare" class="rc-card filter-panel" method="get" action="{{ url_for('faculty_compare') }}" hidden>
+      <h2 class="card-heading">Compare two shortlisted faculty</h2>
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5"><label class="form-label" for="cmp-a">Faculty A</label><select class="form-select" id="cmp-a" name="a"></select></div>
+        <div class="col-md-5"><label class="form-label" for="cmp-b">Faculty B</label><select class="form-select" id="cmp-b" name="b"></select></div>
+        <div class="col-md-2"><button class="btn rc-btn w-100" type="submit">Compare</button></div>
+      </div>
+      <p class="muted small mt-3 mb-0">Comparison uses Jaccard similarity of keywords. Similar keywords do not prove the two have worked together.</p>
+    </form>
+
+    <div id="rc-items" class="row g-4"></div>
+    <div id="rc-none" hidden>
+      {{ empty("Your shortlist is empty", "Press Shortlist on a faculty card or profile to add someone here.") }}
+      <p class="text-center mt-3"><a class="btn rc-btn" href="{{ url_for('faculty_list') }}">Browse faculty</a></p>
+    </div>
+  </div>
+</div>
+<script type="application/json" id="rc-data">{{ items|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/collections.js') }}"></script>
+{% endblock %}
