@@ -9,11 +9,10 @@ This file only connects web pages (routes) to the logic in the algorithms/ folde
 
 Run it with:   python app.py      then open  http://127.0.0.1:5000
 """
-<<<<<<< ours
 import os
 from flask import Flask, abort, render_template, request, url_for, Response
 
-from algorithms import analytics, collaboration, data_manager, expertise, quality
+from algorithms import analytics, citations, collaboration, data_manager, expertise, faculty_filters, quality
 from algorithms.data_manager import Dataset, clean_year
 
 # Load environment configuration from .env if present
@@ -25,12 +24,6 @@ if os.path.exists(_env_path):
             if _line and not _line.startswith("#") and "=" in _line:
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip().strip("'\""))
-=======
-from flask import Flask, abort, render_template, request, url_for
-
-from algorithms import analytics, citations, collaboration, expertise, faculty_filters, quality
-from algorithms.data_manager import Dataset
->>>>>>> theirs
 
 app = Flask(__name__)
 app.config["ADMIN_ENABLED"] = os.environ.get("RC_ADMIN_ENABLED", "False").lower() in ("1", "true", "yes")
