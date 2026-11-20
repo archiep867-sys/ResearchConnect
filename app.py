@@ -9,12 +9,24 @@ This file only connects web pages (routes) to the logic in the algorithms/ folde
 
 Run it with:   python app.py      then open  http://127.0.0.1:5000
 """
-from flask import Flask, abort, render_template, request, url_for
+import os
+from flask import Flask, abort, render_template, request, url_for, Response
 
-from algorithms import analytics, collaboration, expertise, quality
-from algorithms.data_manager import Dataset
+from algorithms import analytics, collaboration, data_manager, expertise, quality
+from algorithms.data_manager import Dataset, clean_year
+
+# Load environment configuration from .env if present
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path, "r", encoding="utf-8") as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip().strip("'\""))
 
 app = Flask(__name__)
+app.config["ADMIN_ENABLED"] = os.environ.get("RC_ADMIN_ENABLED", "False").lower() in ("1", "true", "yes")
 
 
 def publication_table_context(ds, q="", year="", dept=""):
@@ -154,11 +166,165 @@ def expertise_finder():
 @app.route("/network")
 def network():
     ds = Dataset()
-    graph = collaboration.build_graph(ds)
+    raw_year_from = request.args.get("year_from", "").strip()
+    raw_year_to = request.args.get("year_to", "").strip()
+    raw_min_weight = request.args.get("min_weight", "").strip()
+
+    filter_messages = []
+    year_from = None
+    year_to = None
+    min_weight = 1
+
+    if raw_year_from:
+        parsed = clean_year(raw_year_from)
+        if parsed is None:
+            filter_messages.append("Invalid 'Year from' input; defaulted.")
+        else:
+            year_from = parsed
+
+    if raw_year_to:
+        parsed = clean_year(raw_year_to)
+        if parsed is None:
+            filter_messages.append("Invalid 'Year to' input; defaulted.")
+        else:
+            year_to = parsed
+
+    if year_from is not None and year_to is not None and year_from > year_to:
+        filter_messages.append("'Year from' cannot be greater than 'Year to'; year filters reset.")
+        year_from, year_to = None, None
+
+    if raw_min_weight:
+        try:
+            mw = int(float(raw_min_weight))
+            if mw < 1:
+                filter_messages.append("Minimum shared papers must be at least 1; defaulted to 1.")
+                min_weight = 1
+            else:
+                min_weight = mw
+        except (ValueError, TypeError):
+            filter_messages.append("Invalid minimum shared papers; defaulted to 1.")
+            min_weight = 1
+
+    year_filter_active = (year_from is not None) or (year_to is not None)
+    graph = collaboration.build_graph(ds, year_from=year_from, year_to=year_to, min_weight=min_weight)
     plot = collaboration.network_for_plot(graph, ds)
     for node in plot["nodes"]:                        # build profile links with url_for
         node["profile"] = url_for("faculty_detail", faculty_id=node["id"])
-    return render_template("network.html", plot=plot, stats=collaboration.network_stats(graph, ds))
+
+    centrality = collaboration.centrality_table(graph, ds)
+
+    return render_template(
+        "network.html",
+        plot=plot,
+        stats=collaboration.network_stats(graph, ds),
+        centrality=centrality,
+        year_from=year_from if year_from is not None else "",
+        year_to=year_to if year_to is not None else "",
+        min_weight=min_weight,
+        year_filter_active=year_filter_active,
+        filter_message=" ".join(filter_messages) if filter_messages else "",
+    )
+
+
+# ---------- Export endpoints ----------
+@app.route("/export/publications")
+@app.route("/publications/export")
+def export_publications():
+    ds = Dataset()
+    q = request.args.get("q", "").strip()
+    year = request.args.get("year", "").strip()
+    dept = request.args.get("department", "").strip()
+    if not q:
+        q = request.args.get("keyword", "").strip()
+    rows = data_manager.filter_publication_rows(ds.publication_rows(), q=q, year=year, dept=dept)
+    csv_bytes = data_manager.publications_to_csv(rows)
+    return Response(
+        csv_bytes,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="publications.csv"'},
+    )
+
+
+@app.route("/export/network")
+@app.route("/network/export")
+def export_network():
+    ds = Dataset()
+    raw_year_from = request.args.get("year_from", "").strip()
+    raw_year_to = request.args.get("year_to", "").strip()
+    raw_min_weight = request.args.get("min_weight", "").strip()
+
+    year_from = clean_year(raw_year_from) if raw_year_from else None
+    year_to = clean_year(raw_year_to) if raw_year_to else None
+    if year_from is not None and year_to is not None and year_from > year_to:
+        year_from, year_to = None, None
+
+    try:
+        min_weight = int(float(raw_min_weight)) if raw_min_weight else 1
+        if min_weight < 1:
+            min_weight = 1
+    except (ValueError, TypeError):
+        min_weight = 1
+
+    graph = collaboration.build_graph(ds, year_from=year_from, year_to=year_to, min_weight=min_weight)
+    csv_bytes = collaboration.network_to_csv(graph, ds)
+    return Response(
+        csv_bytes,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="collaboration_network.csv"'},
+    )
+
+
+# ---------- Admin data entry ----------
+@app.route("/admin", methods=["GET", "POST"])
+def admin_page():
+    if not app.config.get("ADMIN_ENABLED", False):
+        abort(404)
+
+    env_password = os.environ.get("RC_ADMIN_PASSWORD") or os.environ.get("ADMIN_PASSWORD")
+    if not env_password:
+        return render_template(
+            "admin.html",
+            error="Admin password is not configured in the environment.",
+            success="",
+            faculty=[],
+            papers=[],
+        ), 403
+
+    ds = Dataset()
+    error = ""
+    success = ""
+
+    if request.method == "POST":
+        entered_password = request.form.get("password", "")
+        if entered_password != env_password:
+            error = "Invalid admin password."
+        else:
+            table_type = request.form.get("table_type", "").strip()
+            try:
+                if table_type == "faculty":
+                    row = {col: request.form.get(col, "") for col in data_manager.FACULTY_COLUMNS}
+                    ds.add_faculty(row)
+                    success = f"Faculty member '{row.get('faculty_id')}' added successfully (backup created)."
+                elif table_type == "paper":
+                    row = {col: request.form.get(col, "") for col in data_manager.PAPER_COLUMNS}
+                    ds.add_paper(row)
+                    success = f"Paper '{row.get('paper_id')}' added successfully (backup created)."
+                elif table_type == "authorship":
+                    row = {col: request.form.get(col, "") for col in data_manager.AUTHORSHIP_COLUMNS}
+                    ds.add_authorship(row)
+                    success = f"Authorship link ({row.get('paper_id')}, {row.get('faculty_id')}) added successfully (backup created)."
+                else:
+                    error = "Invalid table type selected."
+            except (ValueError, RuntimeError) as exc:
+                error = str(exc)
+
+    return render_template(
+        "admin.html",
+        error=error,
+        success=success,
+        faculty=ds.faculty,
+        papers=ds.papers,
+    )
 
 
 # ---------- Analytics ----------

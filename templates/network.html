@@ -4,58 +4,166 @@
 {% block content %}
 <div class="container page">
   <h1 class="page-title">Collaboration network</h1>
-  <p class="muted page-lead">Each dot is a VJTI faculty member. A line joins two faculty only when they are listed as authors of the same paper.
+  <p class="muted page-lead">Each dot is a VJTI faculty member. A line joins two faculty only when they are listed as
+    authors of the same paper.
     Line thickness shows the number of shared papers, and larger dots have more collaborators.</p>
 
+  <form class="row g-2 filter-bar mb-4" method="get" action="{{ url_for('network') }}">
+    <div class="col-sm-6 col-md-3">
+      <label class="form-label" for="net-year-from">Year from</label>
+      <input class="form-control" type="number" id="net-year-from" name="year_from"
+        value="{{ year_from if year_from is not none else '' }}" placeholder="e.g. 2020" min="1900" max="2100">
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <label class="form-label" for="net-year-to">Year to</label>
+      <input class="form-control" type="number" id="net-year-to" name="year_to"
+        value="{{ year_to if year_to is not none else '' }}" placeholder="e.g. 2025" min="1900" max="2100">
+    </div>
+    <div class="col-sm-6 col-md-3">
+      <label class="form-label" for="net-min-weight">Minimum shared papers</label>
+      <input class="form-control" type="number" id="net-min-weight" name="min_weight"
+        value="{{ min_weight if min_weight is not none else 1 }}" min="1">
+    </div>
+    <div class="col-sm-6 col-md-3 d-flex align-items-end gap-2">
+      <button class="btn rc-btn flex-fill" type="submit">Apply</button>
+      <a class="btn rc-btn-ghost" href="{{ url_for('network') }}">Reset</a>
+      <a class="btn rc-btn-ghost"
+        href="{{ url_for('export_network', year_from=year_from, year_to=year_to, min_weight=min_weight) }}"
+        title="Download filtered network CSV">Download CSV</a>
+    </div>
+  </form>
+
+  {% if filter_message %}
+  <div class="rc-note mb-4" role="alert">{{ filter_message }}</div>
+  {% endif %}
+
+  {% if year_filter_active %}
+  <div class="rc-note mb-4">Note: Papers with no publication year are excluded while a year filter is active.</div>
+  {% endif %}
+
   <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3"><div class="rc-card stat"><div class="stat-num">{{ stats.faculty }}</div><div class="stat-label">Faculty</div></div></div>
-    <div class="col-6 col-md-3"><div class="rc-card stat"><div class="stat-num">{{ stats.links }}</div><div class="stat-label">Verified links</div></div></div>
-    <div class="col-6 col-md-3"><div class="rc-card stat"><div class="stat-num">{{ stats.multi_author_papers }}</div><div class="stat-label">Papers with 2+ VJTI authors</div></div></div>
-    <div class="col-6 col-md-3"><div class="rc-card stat"><div class="stat-num">{{ stats.collaborating }}</div><div class="stat-label">Faculty with a link</div></div></div>
+    <div class="col-6 col-md-3">
+      <div class="rc-card stat">
+        <div class="stat-num">{{ stats.faculty }}</div>
+        <div class="stat-label">Faculty</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="rc-card stat">
+        <div class="stat-num">{{ stats.links }}</div>
+        <div class="stat-label">Verified links</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="rc-card stat">
+        <div class="stat-num">{{ stats.multi_author_papers }}</div>
+        <div class="stat-label">Papers with 2+ VJTI authors</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="rc-card stat">
+        <div class="stat-num">{{ stats.collaborating }}</div>
+        <div class="stat-label">Faculty with a link</div>
+      </div>
+    </div>
   </div>
 
   {% if plot.nodes %}
-    {% if stats.links == 0 %}
-    <div class="rc-note mb-4">
-      <strong>No verified collaborations yet.</strong>
-      No paper in authorship.csv lists two or more VJTI faculty authors, so the graph has no lines.
-      Lines appear automatically when such papers are added. Shared keywords never create a line.
-    </div>
+  {% if stats.links == 0 %}
+  <div class="rc-note mb-4">
+    {% if year_filter_active or (min_weight is not none and min_weight > 1) %}
+    <strong>No collaborations match these filters.</strong>
+    <a href="{{ url_for('network') }}">Reset filters</a>
+    {% else %}
+    <strong>No verified collaborations yet.</strong>
+    No paper in authorship.csv lists two or more VJTI faculty authors, so the graph has no lines.
+    Lines appear automatically when such papers are added. Shared keywords never create a line.
     {% endif %}
-    <div class="row g-4">
-      <div class="col-lg-8">
-        <div class="rc-card"><div id="network-plot" class="rc-chart" style="height: 540px"></div></div>
-      </div>
-      <div class="col-lg-4">
-        <div class="rc-card h-100" id="node-panel" aria-live="polite">
-          <h2 class="card-heading">Faculty details</h2>
-          <p class="muted mb-0">Select a dot in the graph to see that faculty member's details.</p>
-        </div>
+  </div>
+  {% endif %}
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="rc-card">
+        <div id="network-plot" class="rc-chart" style="height: 540px"></div>
       </div>
     </div>
+    <div class="col-lg-4">
+      <div class="rc-card h-100" id="node-panel" aria-live="polite">
+        <h2 class="card-heading">Faculty details</h2>
+        <p class="muted mb-0">Select a dot in the graph to see that faculty member's details.</p>
+      </div>
+    </div>
+  </div>
 
-    {% if stats.top_pairs %}
-    <h2 class="card-heading mt-4">Collaborating pairs</h2>
-    <div class="rc-card table-responsive">
-      <table class="table rc-table mb-0">
-        <thead><tr><th>Faculty</th><th>Shared papers</th><th>Titles</th></tr></thead>
-        <tbody>
-          {% for pair in stats.top_pairs %}
-          <tr><td>{{ pair.a }} and {{ pair.b }}</td><td>{{ pair.shared }}</td><td>{{ pair.titles|join('; ') }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
+  {% if stats.top_pairs %}
+  <h2 class="card-heading mt-4">Collaborating pairs</h2>
+  <div class="rc-card table-responsive">
+    <table class="table rc-table mb-0">
+      <thead>
+        <tr>
+          <th>Faculty</th>
+          <th>Shared papers</th>
+          <th>Titles</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pair in stats.top_pairs %}
+        <tr>
+          <td>{{ pair.a }} and {{ pair.b }}</td>
+          <td>{{ pair.shared }}</td>
+          <td>{{ pair.titles|join('; ') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <h2 class="card-heading mt-4">Faculty centrality</h2>
+  {% if centrality %}
+  <div class="rc-card table-responsive">
+    <table class="table rc-table mb-0">
+      <thead>
+        <tr>
+          <th>Faculty</th>
+          <th>Department</th>
+          <th>Degree centrality</th>
+          <th>Betweenness centrality</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in centrality %}
+        <tr>
+          <td>
+            {% if row.faculty_id %}
+            <a href="{{ url_for('faculty_detail', faculty_id=row.faculty_id) }}">{{ row.name }}</a>
+            {% else %}
+            {{ row.name }}
+            {% endif %}
+          </td>
+          <td>{{ row.department }}</td>
+          <td>{{ row.degree_centrality|round(3) }}</td>
+          <td>{{ row.betweenness_centrality|round(3) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
-    {{ empty("No faculty to display", "faculty.csv is missing or has no rows, so there is nothing to draw.") }}
+  {{ empty("No centrality data", "There are no faculty members to display centrality for.") }}
+  {% endif %}
+  {% else %}
+  {{ empty("No faculty to display", "faculty.csv is missing or has no rows, so there is nothing to draw.") }}
   {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 {% if plot.nodes %}
-<script>window.RC_NETWORK = {{ plot|tojson }};</script>
+<script id="rc-network-data" type="application/json">{{ plot|tojson }}</script>
+<script>
+  window.RC_NETWORK = JSON.parse(document.getElementById("rc-network-data").textContent);
+</script>
 <script src="{{ url_for('static', filename='js/network.js') }}"></script>
 {% endif %}
 {% endblock %}

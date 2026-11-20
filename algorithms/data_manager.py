@@ -11,8 +11,12 @@ Everything else in the project (search, charts, network) reads its data from the
 `Dataset` object defined here, so the CSV rules live in exactly one place.
 Nothing in this file ever writes to a CSV.
 """
+import csv
+from datetime import datetime
+import io
 import os
 import re
+import shutil
 from collections import Counter
 
 import pandas as pd
@@ -241,3 +245,144 @@ class Dataset:
     def publication_departments(self):
         """Departments that actually have at least one paper (used by the dropdown)."""
         return sorted({d for row in self.publication_rows() for d in row["departments"]})
+
+    # -- Task 13: writing with backup and validation --
+    def create_backup(self, filename):
+        """Create a timestamped backup of the given CSV file before writing.
+        Raises RuntimeError if the backup fails, aborting the write."""
+        src_path = os.path.join(DATA_DIR, filename)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        backup_name = f"{filename}.{timestamp}.bak"
+        backup_path = os.path.join(DATA_DIR, backup_name)
+        try:
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, backup_path)
+            else:
+                with open(backup_path, "w", encoding="utf-8-sig", newline=""):
+                    pass
+            return backup_path
+        except Exception as exc:
+            raise RuntimeError(f"Backup failed for {filename}: {exc}") from exc
+
+    def add_faculty(self, record):
+        """Validate and append a new faculty row to faculty.csv with backup first."""
+        fid = str(record.get("faculty_id", "")).strip()
+        if not fid:
+            raise ValueError("Faculty ID cannot be blank.")
+        if fid in self.faculty_by_id or (not self.raw_faculty.empty and fid in self.raw_faculty["faculty_id"].values):
+            raise ValueError(f"Faculty ID '{fid}' already exists.")
+
+        self.create_backup("faculty.csv")
+
+        row = {col: str(record.get(col, "")).strip() for col in FACULTY_COLUMNS}
+        csv_path = os.path.join(DATA_DIR, "faculty.csv")
+        file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
+        with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=FACULTY_COLUMNS)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+
+        self.raw_faculty = read_csv_safe("faculty.csv", FACULTY_COLUMNS)
+        self._load_faculty()
+        self._link_authorship()
+        self._build_keyword_index()
+        return row
+
+    def add_paper(self, record):
+        """Validate and append a new paper row to papers.csv with backup first."""
+        pid = str(record.get("paper_id", "")).strip()
+        if not pid:
+            raise ValueError("Paper ID cannot be blank.")
+        if pid in self.papers_by_id or (not self.raw_papers.empty and pid in self.raw_papers["paper_id"].values):
+            raise ValueError(f"Paper ID '{pid}' already exists.")
+
+        self.create_backup("papers.csv")
+
+        row = {col: str(record.get(col, "")).strip() for col in PAPER_COLUMNS}
+        csv_path = os.path.join(DATA_DIR, "papers.csv")
+        file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
+        with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=PAPER_COLUMNS)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+
+        self.raw_papers = read_csv_safe("papers.csv", PAPER_COLUMNS)
+        self._load_papers()
+        self._link_authorship()
+        self._build_keyword_index()
+        return row
+
+    def add_authorship(self, record):
+        """Validate and append a new authorship row to authorship.csv with backup first."""
+        pid = str(record.get("paper_id", "")).strip()
+        fid = str(record.get("faculty_id", "")).strip()
+        if not pid or not fid:
+            raise ValueError("Both paper_id and faculty_id are required.")
+
+        if pid not in self.papers_by_id:
+            raise ValueError(f"Referenced paper ID '{pid}' does not exist.")
+        if fid not in self.faculty_by_id:
+            raise ValueError(f"Referenced faculty ID '{fid}' does not exist.")
+
+        self.create_backup("authorship.csv")
+
+        row = {col: str(record.get(col, "")).strip() for col in AUTHORSHIP_COLUMNS}
+        csv_path = os.path.join(DATA_DIR, "authorship.csv")
+        file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
+        with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=AUTHORSHIP_COLUMNS)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow(row)
+
+        self.raw_authorship = read_csv_safe("authorship.csv", AUTHORSHIP_COLUMNS)
+        self._link_authorship()
+        self._build_keyword_index()
+        return row
+
+
+# ---------- Task 11 helper functions ----------
+
+def filter_publication_rows(rows, q="", year="", dept=""):
+    """Filter publication rows by search query, year, and department."""
+    words = [w.lower() for w in (q or "").split() if w]
+    year_str = str(year).strip() if year else ""
+    dept_str = str(dept).strip() if dept else ""
+    filtered = []
+    for r in rows:
+        if words:
+            text = r.get("search_text", "")
+            if not all(w in text for w in words):
+                continue
+        if year_str:
+            p_year = str(r["paper"].get("year_num") or "")
+            if p_year != year_str:
+                continue
+        if dept_str:
+            if dept_str not in r.get("departments", []):
+                continue
+        filtered.append(r)
+    return filtered
+
+
+def publications_to_csv(rows):
+    """Generate CSV bytes (UTF-8 with BOM) for publication rows.
+    An empty result returns a file with the header row only.
+    """
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Title", "Year", "Venue", "Faculty Authors", "Departments", "DOI", "Source URL"])
+    for r in rows:
+        p = r["paper"]
+        title = p.get("title") or "Title not listed"
+        year = str(p.get("year_num") or "")
+        venue = p.get("venue") or ""
+        authors = "; ".join(a.get("name", "") for a in r.get("authors", []))
+        departments = "; ".join(r.get("departments", []))
+        doi = p.get("doi") or ""
+        link = p.get("doi_link") or p.get("source_url") or ""
+        writer.writerow([title, year, venue, authors, departments, doi, link])
+    return output.getvalue().encode("utf-8-sig")
+

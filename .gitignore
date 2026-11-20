@@ -5,3 +5,6 @@ venv/
 .DS_Store
 .env
 *.zip
+*.bak
+csv_backup/
+

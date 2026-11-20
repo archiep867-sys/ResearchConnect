@@ -27,6 +27,7 @@
   var input = root.querySelector("#pub-search"), clearBtn = root.querySelector("#pub-clear");
   var yearSel = root.querySelector("#pub-year"), deptSel = root.querySelector("#pub-dept");
   var resetBtn = root.querySelector("#pub-reset"), emptyReset = root.querySelector("#pub-empty-reset");
+  var exportBtn = root.querySelector("#pub-export");
   var countEl = root.querySelector("#pub-count"), emptyBox = root.querySelector("#pub-empty");
   var wrap = root.querySelector("#pub-table-wrap");
 
@@ -50,6 +51,13 @@
     clearBtn.hidden = input.value === "";
     emptyBox.hidden = shown !== 0;
     wrap.hidden = shown === 0;
+    if (exportBtn) {
+      var params = [];
+      if (input.value) params.push("q=" + encodeURIComponent(input.value));
+      if (yearSel.value) params.push("year=" + encodeURIComponent(yearSel.value));
+      if (deptSel.value) params.push("department=" + encodeURIComponent(deptSel.value));
+      exportBtn.href = "/export/publications" + (params.length ? "?" + params.join("&") : "");
+    }
   }
 
   function resetAll() {

@@ -21,6 +21,7 @@
       {% for d in pub_departments %}<option value="{{ d }}" {% if d == init_dept %}selected{% endif %}>{{ d }}</option>{% endfor %}
     </select>
     <button type="button" class="btn rc-btn-ghost" id="pub-reset">Reset filters</button>
+    <a class="btn rc-btn-ghost" id="pub-export" href="{{ url_for('export_publications', q=init_q, year=init_year, department=init_dept) }}">Download CSV</a>
   </div>
 
   <p class="pub-count" id="pub-count" aria-live="polite">Showing {{ pub_rows|length }} of {{ pub_rows|length }} publications</p>

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Admin Data Entry{% endblock %}
+{% block content %}
+<div class="container page">
+  <h1 class="page-title">Admin Data Entry</h1>
+  <p class="muted page-lead">Add new records to the dataset. Each write is automatically preceded by a timestamped backup of the target CSV file.</p>
+
+  {% if success %}
+  <div class="rc-note mb-4" role="status">
+    <strong>Success:</strong> {{ success }}
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div class="rc-note mb-4" role="alert">
+    <strong>Error:</strong> {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- Record Type Pills/Tabs -->
+  <ul class="nav nav-pills mb-4" id="admin-pills" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="pill-faculty" type="button" onclick="selectTab('faculty')">Faculty Member</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pill-paper" type="button" onclick="selectTab('paper')">Publication</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="pill-authorship" type="button" onclick="selectTab('authorship')">Authorship Link</button>
+    </li>
+  </ul>
+
+  <!-- Tab 1: Faculty Form -->
+  <div class="rc-card mb-4" id="tab-faculty">
+    <h2 class="card-heading mb-3">Add Faculty Member (faculty.csv)</h2>
+    <form method="post" action="{{ url_for('admin_page') }}">
+      <input type="hidden" name="table_type" value="faculty">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="fac-pwd"><strong>Admin Password *</strong></label>
+          <input class="form-control admin-pwd" type="password" id="fac-pwd" name="password" required autocomplete="current-password" placeholder="Enter admin password">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="fac-id"><strong>Faculty ID *</strong></label>
+          <input class="form-control" type="text" id="fac-id" name="faculty_id" required placeholder="e.g. F013">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="fac-name"><strong>Full Name *</strong></label>
+          <input class="form-control" type="text" id="fac-name" name="name" required placeholder="e.g. Dr. Jane Doe">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="fac-dept">Department</label>
+          <input class="form-control" type="text" id="fac-dept" name="department" placeholder="e.g. Computer Engineering">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="fac-exp">Expertise (semicolon-separated)</label>
+          <input class="form-control" type="text" id="fac-exp" name="expertise" placeholder="e.g. Machine Learning; Cybersecurity">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="fac-url">Profile URL</label>
+          <input class="form-control" type="url" id="fac-url" name="profile_url" placeholder="https://vjti.ac.in/...">
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="fac-status">Data Status</label>
+          <input class="form-control" type="text" id="fac-status" name="data_status" placeholder="e.g. verified">
+        </div>
+        <div class="col-12 mt-4">
+          <button class="btn rc-btn" type="submit">Add Faculty Member</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab 2: Publication Form -->
+  <div class="rc-card mb-4" id="tab-paper" style="display: none;">
+    <h2 class="card-heading mb-3">Add Publication (papers.csv)</h2>
+    <form method="post" action="{{ url_for('admin_page') }}">
+      <input type="hidden" name="table_type" value="paper">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="pap-pwd"><strong>Admin Password *</strong></label>
+          <input class="form-control admin-pwd" type="password" id="pap-pwd" name="password" required autocomplete="current-password" placeholder="Enter admin password">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="pap-id"><strong>Paper ID *</strong></label>
+          <input class="form-control" type="text" id="pap-id" name="paper_id" required placeholder="e.g. P020">
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="pap-title"><strong>Title *</strong></label>
+          <input class="form-control" type="text" id="pap-title" name="title" required placeholder="Paper title">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="pap-year">Year</label>
+          <input class="form-control" type="number" id="pap-year" name="year" placeholder="e.g. 2026" min="1900" max="2100">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="pap-venue">Venue</label>
+          <input class="form-control" type="text" id="pap-venue" name="venue" placeholder="e.g. IEEE Transactions">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="pap-doi">DOI</label>
+          <input class="form-control" type="text" id="pap-doi" name="doi" placeholder="e.g. 10.1109/...">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="pap-kw">Keywords (semicolon-separated)</label>
+          <input class="form-control" type="text" id="pap-kw" name="keywords" placeholder="e.g. AI; IoT; Robotics">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="pap-url">Source URL</label>
+          <input class="form-control" type="url" id="pap-url" name="source_url" placeholder="https://...">
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="pap-status">Data Status</label>
+          <input class="form-control" type="text" id="pap-status" name="data_status" placeholder="e.g. verified">
+        </div>
+        <div class="col-12 mt-4">
+          <button class="btn rc-btn" type="submit">Add Publication</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab 3: Authorship Form -->
+  <div class="rc-card mb-4" id="tab-authorship" style="display: none;">
+    <h2 class="card-heading mb-3">Add Authorship Link (authorship.csv)</h2>
+    <form method="post" action="{{ url_for('admin_page') }}">
+      <input type="hidden" name="table_type" value="authorship">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label" for="auth-pwd"><strong>Admin Password *</strong></label>
+          <input class="form-control admin-pwd" type="password" id="auth-pwd" name="password" required autocomplete="current-password" placeholder="Enter admin password">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="auth-order">Author Order</label>
+          <input class="form-control" type="number" id="auth-order" name="author_order" value="1" min="1">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="auth-paper"><strong>Paper ID *</strong></label>
+          <input class="form-control" list="papers-list" id="auth-paper" name="paper_id" required placeholder="Select or type Paper ID (e.g. P001)">
+          <datalist id="papers-list">
+            {% for p in papers %}
+            <option value="{{ p.paper_id }}">{{ p.paper_id }} - {{ p.title }} ({{ p.year_num or 'No year' }})</option>
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="auth-fac"><strong>Faculty ID *</strong></label>
+          <input class="form-control" list="faculty-list" id="auth-fac" name="faculty_id" required placeholder="Select or type Faculty ID (e.g. F001)">
+          <datalist id="faculty-list">
+            {% for f in faculty %}
+            <option value="{{ f.faculty_id }}">{{ f.faculty_id }} - {{ f.name }} ({{ f.department or 'No dept' }})</option>
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="auth-url">Source URL</label>
+          <input class="form-control" type="url" id="auth-url" name="source_url" placeholder="https://...">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="auth-status">Data Status</label>
+          <input class="form-control" type="text" id="auth-status" name="data_status" placeholder="e.g. verified">
+        </div>
+        <div class="col-12 mt-4">
+          <button class="btn rc-btn" type="submit">Add Authorship Link</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function selectTab(type) {
+  var tabs = ['faculty', 'paper', 'authorship'];
+  // Keep password synchronized across tabs
+  var currentPwd = '';
+  document.querySelectorAll('.admin-pwd').forEach(function(input) {
+    if (input.value) currentPwd = input.value;
+  });
+  if (currentPwd) {
+    document.querySelectorAll('.admin-pwd').forEach(function(input) {
+      input.value = currentPwd;
+    });
+  }
+
+  tabs.forEach(function(t) {
+    var tabEl = document.getElementById('tab-' + t);
+    var pillEl = document.getElementById('pill-' + t);
+    if (t === type) {
+      if (tabEl) tabEl.style.display = 'block';
+      if (pillEl) pillEl.classList.add('active');
+    } else {
+      if (tabEl) tabEl.style.display = 'none';
+      if (pillEl) pillEl.classList.remove('active');
+    }
+  });
+}
+</script>
+{% endblock %}
