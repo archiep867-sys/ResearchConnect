@@ -33,10 +33,11 @@ AUTHORSHIP_COLUMNS = ["paper_id", "faculty_id", "author_order", "source_url", "d
 
 # ---------- small helper functions ----------
 
-def read_csv_safe(filename, columns):
+def read_csv_safe(filename, columns, data_dir=None):
     """Read a CSV as text. A missing, empty or broken file gives an empty table
     with the right columns, so the website shows empty states instead of crashing."""
-    path = os.path.join(DATA_DIR, filename)
+    effective_dir = data_dir or DATA_DIR
+    path = os.path.join(effective_dir, filename)
     if not os.path.exists(path):
         return pd.DataFrame(columns=columns)
     try:
@@ -104,18 +105,18 @@ def doi_to_url(doi):
 # ---------- the Dataset ----------
 
 class Dataset:
-    """Holds clean, linked data. Created fresh on every request, so edits to the
-    CSV files show up after a page refresh (the files are tiny, so this is fast)."""
+    """Holds clean, linked data. Supports custom data_dir and can be cached via get_dataset()."""
 
-    def __init__(self):
+    def __init__(self, data_dir=None):
+        self.data_dir = data_dir or DATA_DIR
         self.warnings = []                    # data-quality notes shown on the dashboard
 
         # Keep the normalized source rows as well as the cleaned records.
         # Quality checks need to see duplicates and invalid links that the
         # cleaned Dataset intentionally skips.
-        self.raw_faculty = read_csv_safe("faculty.csv", FACULTY_COLUMNS)
-        self.raw_papers = read_csv_safe("papers.csv", PAPER_COLUMNS)
-        self.raw_authorship = read_csv_safe("authorship.csv", AUTHORSHIP_COLUMNS)
+        self.raw_faculty = read_csv_safe("faculty.csv", FACULTY_COLUMNS, data_dir=self.data_dir)
+        self.raw_papers = read_csv_safe("papers.csv", PAPER_COLUMNS, data_dir=self.data_dir)
+        self.raw_authorship = read_csv_safe("authorship.csv", AUTHORSHIP_COLUMNS, data_dir=self.data_dir)
 
         self._load_faculty()
         self._load_papers()
@@ -250,10 +251,10 @@ class Dataset:
     def create_backup(self, filename):
         """Create a timestamped backup of the given CSV file before writing.
         Raises RuntimeError if the backup fails, aborting the write."""
-        src_path = os.path.join(DATA_DIR, filename)
+        src_path = os.path.join(self.data_dir, filename)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         backup_name = f"{filename}.{timestamp}.bak"
-        backup_path = os.path.join(DATA_DIR, backup_name)
+        backup_path = os.path.join(self.data_dir, backup_name)
         try:
             if os.path.exists(src_path):
                 shutil.copy2(src_path, backup_path)
@@ -275,7 +276,7 @@ class Dataset:
         self.create_backup("faculty.csv")
 
         row = {col: str(record.get(col, "")).strip() for col in FACULTY_COLUMNS}
-        csv_path = os.path.join(DATA_DIR, "faculty.csv")
+        csv_path = os.path.join(self.data_dir, "faculty.csv")
         file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
         with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=FACULTY_COLUMNS)
@@ -283,10 +284,11 @@ class Dataset:
                 writer.writeheader()
             writer.writerow(row)
 
-        self.raw_faculty = read_csv_safe("faculty.csv", FACULTY_COLUMNS)
+        self.raw_faculty = read_csv_safe("faculty.csv", FACULTY_COLUMNS, data_dir=self.data_dir)
         self._load_faculty()
         self._link_authorship()
         self._build_keyword_index()
+        clear_dataset_cache(self.data_dir)
         return row
 
     def add_paper(self, record):
@@ -300,7 +302,7 @@ class Dataset:
         self.create_backup("papers.csv")
 
         row = {col: str(record.get(col, "")).strip() for col in PAPER_COLUMNS}
-        csv_path = os.path.join(DATA_DIR, "papers.csv")
+        csv_path = os.path.join(self.data_dir, "papers.csv")
         file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
         with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=PAPER_COLUMNS)
@@ -308,10 +310,11 @@ class Dataset:
                 writer.writeheader()
             writer.writerow(row)
 
-        self.raw_papers = read_csv_safe("papers.csv", PAPER_COLUMNS)
+        self.raw_papers = read_csv_safe("papers.csv", PAPER_COLUMNS, data_dir=self.data_dir)
         self._load_papers()
         self._link_authorship()
         self._build_keyword_index()
+        clear_dataset_cache(self.data_dir)
         return row
 
     def add_authorship(self, record):
@@ -329,7 +332,7 @@ class Dataset:
         self.create_backup("authorship.csv")
 
         row = {col: str(record.get(col, "")).strip() for col in AUTHORSHIP_COLUMNS}
-        csv_path = os.path.join(DATA_DIR, "authorship.csv")
+        csv_path = os.path.join(self.data_dir, "authorship.csv")
         file_exists = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
         with open(csv_path, "a", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=AUTHORSHIP_COLUMNS)
@@ -337,9 +340,10 @@ class Dataset:
                 writer.writeheader()
             writer.writerow(row)
 
-        self.raw_authorship = read_csv_safe("authorship.csv", AUTHORSHIP_COLUMNS)
+        self.raw_authorship = read_csv_safe("authorship.csv", AUTHORSHIP_COLUMNS, data_dir=self.data_dir)
         self._link_authorship()
         self._build_keyword_index()
+        clear_dataset_cache(self.data_dir)
         return row
 
 
@@ -385,4 +389,55 @@ def publications_to_csv(rows):
         link = p.get("doi_link") or p.get("source_url") or ""
         writer.writerow([title, year, venue, authors, departments, doi, link])
     return output.getvalue().encode("utf-8-sig")
+
+
+# ---------- Task 12: Data Caching ----------
+
+_DATASET_CACHE = {}
+
+
+def _get_csv_mtimes(data_dir):
+    """Return modification timestamps and sizes for tracking CSV file updates.
+    Uses os.path.getmtime for faculty.csv, papers.csv, and authorship.csv.
+    """
+    mtimes = []
+    for filename in ("faculty.csv", "papers.csv", "authorship.csv"):
+        path = os.path.join(data_dir, filename)
+        try:
+            mtime = os.path.getmtime(path)
+            size = os.path.getsize(path)
+            mtimes.append((filename, mtime, size))
+        except OSError:
+            mtimes.append((filename, None, None))
+    return tuple(mtimes)
+
+
+def get_dataset(data_dir=None):
+    """Return a cached Dataset instance.
+    Tracks os.path.getmtime of faculty.csv, papers.csv, and authorship.csv.
+    Rebuilds the Dataset if any CSV file is modified, replaced, or recreated.
+    """
+    effective_dir = os.path.abspath(data_dir or DATA_DIR)
+    current_mtimes = _get_csv_mtimes(effective_dir)
+
+    cached = _DATASET_CACHE.get(effective_dir)
+    if cached is not None and cached["mtimes"] == current_mtimes:
+        return cached["dataset"]
+
+    ds = Dataset(data_dir=effective_dir)
+    _DATASET_CACHE[effective_dir] = {
+        "mtimes": current_mtimes,
+        "dataset": ds,
+    }
+    return ds
+
+
+def clear_dataset_cache(data_dir=None):
+    """Clear cached dataset(s). If data_dir is provided, clears only that directory's cache."""
+    if data_dir is not None:
+        effective_dir = os.path.abspath(data_dir)
+        _DATASET_CACHE.pop(effective_dir, None)
+    else:
+        _DATASET_CACHE.clear()
+
 

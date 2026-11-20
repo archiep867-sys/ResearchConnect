@@ -1,4 +1,6 @@
 import csv
+import os
+import time
 
 import pandas as pd
 import pytest
@@ -94,3 +96,83 @@ def test_dataset_links_papers_authors_and_keywords(tmp_path, monkeypatch):
     assert ds.papers_by_id["p1"]["authors"][0]["name"] == "Alice"
     assert ds.faculty_by_id["f1"]["paper_keywords"] == ["AI", "IoT"]
     assert ds.keyword_options() == [("ai", "AI"), ("iot", "IoT"), ("networks", "Networks")]
+
+
+def test_get_dataset_returns_cached_instance_when_files_untouched(tmp_path):
+    write_csv(tmp_path / "faculty.csv", data_manager.FACULTY_COLUMNS, [
+        {"faculty_id": "f1", "name": "Alice"},
+    ])
+    write_csv(tmp_path / "papers.csv", data_manager.PAPER_COLUMNS, [])
+    write_csv(tmp_path / "authorship.csv", data_manager.AUTHORSHIP_COLUMNS, [])
+
+    ds1 = data_manager.get_dataset(data_dir=str(tmp_path))
+    ds2 = data_manager.get_dataset(data_dir=str(tmp_path))
+
+    # Consecutive calls return the exact same instance
+    assert ds1 is ds2
+    assert "f1" in ds1.faculty_by_id
+
+
+def test_get_dataset_rebuilds_when_csv_modified(tmp_path):
+    fac_path = tmp_path / "faculty.csv"
+    write_csv(fac_path, data_manager.FACULTY_COLUMNS, [
+        {"faculty_id": "f1", "name": "Alice"},
+    ])
+    write_csv(tmp_path / "papers.csv", data_manager.PAPER_COLUMNS, [])
+    write_csv(tmp_path / "authorship.csv", data_manager.AUTHORSHIP_COLUMNS, [])
+
+    ds1 = data_manager.get_dataset(data_dir=str(tmp_path))
+    assert "f2" not in ds1.faculty_by_id
+
+    # Append new row and ensure timestamp updates
+    new_mtime = time.time() + 10
+    with fac_path.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=data_manager.FACULTY_COLUMNS)
+        writer.writerow({"faculty_id": "f2", "name": "Bob"})
+    os.utime(str(fac_path), (new_mtime, new_mtime))
+
+    ds2 = data_manager.get_dataset(data_dir=str(tmp_path))
+
+    # Should be a freshly rebuilt Dataset object
+    assert ds2 is not ds1
+    assert "f2" in ds2.faculty_by_id
+    assert ds2.faculty_by_id["f2"]["name"] == "Bob"
+
+
+def test_get_dataset_custom_data_dir_isolation(tmp_path):
+    dir_a = tmp_path / "dir_a"
+    dir_b = tmp_path / "dir_b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+
+    write_csv(dir_a / "faculty.csv", data_manager.FACULTY_COLUMNS, [{"faculty_id": "fA", "name": "Faculty A"}])
+    write_csv(dir_a / "papers.csv", data_manager.PAPER_COLUMNS, [])
+    write_csv(dir_a / "authorship.csv", data_manager.AUTHORSHIP_COLUMNS, [])
+
+    write_csv(dir_b / "faculty.csv", data_manager.FACULTY_COLUMNS, [{"faculty_id": "fB", "name": "Faculty B"}])
+    write_csv(dir_b / "papers.csv", data_manager.PAPER_COLUMNS, [])
+    write_csv(dir_b / "authorship.csv", data_manager.AUTHORSHIP_COLUMNS, [])
+
+    ds_a = data_manager.get_dataset(data_dir=str(dir_a))
+    ds_b = data_manager.get_dataset(data_dir=str(dir_b))
+
+    assert ds_a is not ds_b
+    assert "fA" in ds_a.faculty_by_id and "fB" not in ds_a.faculty_by_id
+    assert "fB" in ds_b.faculty_by_id and "fA" not in ds_b.faculty_by_id
+
+
+def test_get_dataset_rebuilds_on_file_removal_or_recreation(tmp_path):
+    pap_path = tmp_path / "papers.csv"
+    write_csv(tmp_path / "faculty.csv", data_manager.FACULTY_COLUMNS, [])
+    write_csv(pap_path, data_manager.PAPER_COLUMNS, [{"paper_id": "p1", "title": "First Paper"}])
+    write_csv(tmp_path / "authorship.csv", data_manager.AUTHORSHIP_COLUMNS, [])
+
+    ds1 = data_manager.get_dataset(data_dir=str(tmp_path))
+    assert "p1" in ds1.papers_by_id
+
+    # Remove the file
+    pap_path.unlink()
+    ds2 = data_manager.get_dataset(data_dir=str(tmp_path))
+    assert ds2 is not ds1
+    assert "p1" not in ds2.papers_by_id
+

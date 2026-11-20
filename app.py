@@ -11,10 +11,18 @@ Run it with:   python app.py      then open  http://127.0.0.1:5000
 """
 <<<<<<< ours
 import os
-from flask import Flask, abort, render_template, request, url_for, Response
+
+from flask import Flask, Response, abort, render_template, request, url_for
 
 from algorithms import analytics, collaboration, data_manager, expertise, quality
-from algorithms.data_manager import Dataset, clean_year
+from algorithms.data_manager import Dataset, clean_year, get_dataset
+
+
+def _get_ds():
+    """Return dataset: uses monkeypatched Dataset if present in tests, otherwise get_dataset()."""
+    if Dataset is not data_manager.Dataset:
+        return Dataset()
+    return get_dataset()
 
 # Load environment configuration from .env if present
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -54,7 +62,7 @@ def publication_table_context(ds, q="", year="", dept=""):
 # ---------- Dashboard ----------
 @app.route("/")
 def dashboard():
-    ds = Dataset()
+    ds = _get_ds()
     graph = collaboration.build_graph(ds)
     return render_template(
         "index.html",
@@ -72,7 +80,7 @@ def dashboard():
 # ---------- Faculty directory ----------
 @app.route("/faculty")
 def faculty_list():
-    ds = Dataset()
+    ds = _get_ds()
     q = request.args.get("q", "").strip()
     dept = request.args.get("department", "").strip()
     keyword = request.args.get("keyword", "").strip()
@@ -96,7 +104,7 @@ def faculty_list():
 
 @app.route("/faculty/<faculty_id>")
 def faculty_detail(faculty_id):
-    ds = Dataset()
+    ds = _get_ds()
     person = ds.faculty_by_id.get(faculty_id)
     if person is None:
         abort(404)
@@ -107,7 +115,7 @@ def faculty_detail(faculty_id):
 
 @app.get("/compare")
 def faculty_compare():
-    ds = Dataset()
+    ds = _get_ds()
     a = request.args.get("a", "").strip()
     b = request.args.get("b", "").strip()
     result, error = None, ""
@@ -124,7 +132,7 @@ def faculty_compare():
 
 @app.get("/department/<name>")
 def department_detail(name):
-    summary = analytics.department_summary(Dataset(), name)
+    summary = analytics.department_summary(_get_ds(), name)
     if summary is None:
         abort(404)
     return render_template("department.html", department=summary)
@@ -133,7 +141,7 @@ def department_detail(name):
 # ---------- Data quality report ----------
 @app.route("/data-quality")
 def data_quality():
-    ds = Dataset()
+    ds = _get_ds()
     report = quality.quality_report(ds)
     issue_count = sum(len(items) for items in report.values())
     return render_template("data_quality.html", report=report, issue_count=issue_count)
@@ -142,7 +150,7 @@ def data_quality():
 # ---------- Publication detail ----------
 @app.route("/publications/<paper_id>")
 def publication_detail(paper_id):
-    ds = Dataset()
+    ds = _get_ds()
     paper = ds.get_paper(paper_id)
     if paper is None:
         abort(404)
@@ -152,7 +160,7 @@ def publication_detail(paper_id):
 # ---------- Publications ----------
 @app.route("/publications")
 def publications():
-    ds = Dataset()
+    ds = _get_ds()
     q = request.args.get("q", "").strip()
     year = request.args.get("year", "").strip()
     dept = request.args.get("department", "").strip()
@@ -164,7 +172,7 @@ def publications():
 # ---------- Expertise Finder ----------
 @app.route("/expertise")
 def expertise_finder():
-    ds = Dataset()
+    ds = _get_ds()
     q = request.args.get("q", "").strip()
     query_set = expertise.parse_query(q)
 
@@ -180,7 +188,7 @@ def expertise_finder():
 # ---------- Collaboration network ----------
 @app.route("/network")
 def network():
-    ds = Dataset()
+    ds = _get_ds()
     raw_year_from = request.args.get("year_from", "").strip()
     raw_year_to = request.args.get("year_to", "").strip()
     raw_min_weight = request.args.get("min_weight", "").strip()
@@ -245,7 +253,7 @@ def network():
 @app.route("/export/publications")
 @app.route("/publications/export")
 def export_publications():
-    ds = Dataset()
+    ds = _get_ds()
     q = request.args.get("q", "").strip()
     year = request.args.get("year", "").strip()
     dept = request.args.get("department", "").strip()
@@ -263,7 +271,7 @@ def export_publications():
 @app.route("/export/network")
 @app.route("/network/export")
 def export_network():
-    ds = Dataset()
+    ds = _get_ds()
     raw_year_from = request.args.get("year_from", "").strip()
     raw_year_to = request.args.get("year_to", "").strip()
     raw_min_weight = request.args.get("min_weight", "").strip()
@@ -305,7 +313,7 @@ def admin_page():
             papers=[],
         ), 403
 
-    ds = Dataset()
+    ds = _get_ds()
     error = ""
     success = ""
 
@@ -345,7 +353,7 @@ def admin_page():
 # ---------- Analytics ----------
 @app.route("/analytics")
 def analytics_page():
-    ds = Dataset()
+    ds = _get_ds()
     graph = collaboration.build_graph(ds)
     return render_template(
         "analytics.html",
